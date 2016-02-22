@@ -2,7 +2,11 @@
 Programmer's Name: Tejvir Singh And Vivek Bothra
 Date: 4 Feb 2016
 Programming language Java
+<<<<<<< HEAD
 Database USed: Minibase
+=======
+Database USed: Minibase 
+>>>>>>> c654572f589cb486f3541d582bf137f4311581b3
 Version : 1.0
 */
 
@@ -11,8 +15,10 @@ package bufmgr;
 
 
 import global.GlobalConst;
+import global.Minibase;
 import global.Page;
 import global.PageId;
+
 
 
 import java.util.HashMap;
@@ -21,6 +27,12 @@ import java.util.HashMap;
 
 /**
  * <h3>Mi ni base Buffer Manager</h3>
+
+import java.util.HashMap;
+
+/**
+ * <h3>Minibase Buffer Manager</h3>
+
  * The buffer manager reads disk pages into a main memory page as needed. The
  * collection of main memory pages (called frames) used by the buffer manager
  * for this purpose is called the buffer pool. This is just an array of Page
@@ -48,6 +60,7 @@ public class BufMgr implements GlobalConst {
     
     
     
+
 //-------------------------------------------------------------
 
 
@@ -58,13 +71,14 @@ public class BufMgr implements GlobalConst {
    * @param numbufs number of buffers in the buffer pool
    */
   public BufMgr(int numbufs) {
+
 	    
 	    
 	       // This is for the current object created somewhere else in the program.. 
 	     
 	    bufpool = new Page[numbufs];
 	    
-	    numberOfBuffers = numbufs;
+	    //numberOfBuffers = numbufs;
 	    frametab = new FrameDesc[numbufs];
 		for(int i = 0; i < numbufs; i++){
 			frametab[i] = new FrameDesc(i);
@@ -75,7 +89,7 @@ public class BufMgr implements GlobalConst {
 		pagemap = new HashMap<Integer,FrameDesc>(numbufs);
 		replacer = new Clock(this);
 		
-	
+	    
 		
   }
 
@@ -91,35 +105,34 @@ public class BufMgr implements GlobalConst {
    */
 
   public PageId newPage(Page firstpg, int run_size) {
-        
-	  int pickVictimHead;
 	  
+	  System.out.println(" In new page method.. ");
+	  PageId firstpgId ;
+	  
+	  firstpgId = Minibase.DiskManager.allocate_page(run_size);
 		
-
-		pickVictimHead = replacer.pickVictim();
-		if(pickVictimHead != -1){
-			
-			PageId firstpgId ;
-			
-			firstpgId = global.Minibase.DiskManager.allocate_page(run_size);
-			
+		
+		
+	   try{
 			pinPage(firstpgId, firstpg, PIN_MEMCPY);			
-		
-			pagemap.put(firstpgId.pid,frametab[firstpgId.pid]);
+	   }
+	   catch(IllegalArgumentException e)
+	   {
+		  for(int i = 0; i <= run_size;)
+		   {
+			  firstpgId.pid += i;
+			  Minibase.DiskManager.deallocate_page(firstpgId);
+			  return null;
 			
+		   }
+	   }
 			return firstpgId;
-		}
-		else
-		{
-			throw new IllegalStateException(" The Buffer pool is full ");
-		}
-    
-    
-    
   }
   
-	 
+	 	
 	
+
+
 
   /**
    * Deallocates a single page from disk, freeing it from the pool if needed.
@@ -128,27 +141,30 @@ public class BufMgr implements GlobalConst {
    * @throws IllegalArgumentException if the page is pinned
    */
   public void freePage(PageId pageno) {
-	  
-	  
-	  if(pagemap.get(pageno.pid).pincnt >= 1 )
+
+	  System.out.println(" In free page method.. ");
+	  FrameDesc fd = pagemap.get(pageno.pid);
+	  if(fd == null)
+	  {
+		  throw new IllegalArgumentException(" The page is not there.. ");
+	  }
+	  else if(pagemap.get(pageno.pid).pincnt >= 1 )
 	  {
 		  throw new IllegalArgumentException(" Trying to free a page that is pinned ");
 	  }
-	  
-	  
-	  if(pagemap.get(pageno.pid).pincnt == 0)
+	  else if(pagemap.get(pageno.pid).pincnt == 0)
 	  {
-		  bufpool[pagemap.get(pageno.pid).index] = null;		  
-		  global.Minibase.DiskManager.deallocate_page(pageno);
-		  
+		 
+		  bufpool[fd.index] = null;		  
+		  fd.pincnt = 0;
+		  fd.dirty = false;
+		  frametab[fd.pageno.pid] = null;
+		  //remove from pagemap
+		  pagemap.remove(pageno);
+		  Minibase.DiskManager.deallocate_page(pageno);
+		   
 		  
 	  }
-	  
-	  
-	 
-	 
-	  
-	 
   }
 
   /**
@@ -163,85 +179,91 @@ public class BufMgr implements GlobalConst {
    * @throws IllegalStateException if all pages are pinned (i.e. pool exceeded)
    */
   public void pinPage(PageId pageno, Page page, boolean skipRead) {
-	  
-	 int pickVictimHead;
-	  
-	
-		 if(pagemap.get(pageno.pid) != null)
-		  {
-			 
-			 if(pagemap.get(pageno.pid).pincnt >= 1)
-		     {
-				 pagemap.get(pageno.pid).pincnt++;
-				 replacer.pinPage(pagemap.get(pageno.pid));
-			     
-		     }
-			 else if(pagemap.get(pageno.pid).pincnt == 0)
-			 {
-				 pagemap.get(pageno.pid).pincnt++;
-				 replacer.pinPage(pagemap.get(pageno.pid));
-			 }
-			 
-		  }
-		 else
-		 {  
-			
-	         
-	         pickVictimHead = replacer.pickVictim();
-	         if(pickVictimHead == -1)
-	         {
-	        	 throw new IllegalArgumentException("Buffer is full");
-	         }
-	         else
-	         {
-	        	   if(frametab[pickVictimHead].dirty == UNPIN_DIRTY)
-	        	   {
-	        		   flushPage(frametab[pickVictimHead].pageno);
-	        	  
-	        	   }
-	        	   
-        		   if(pageno.pid != -1 && skipRead == PIN_DISKIO)
-        		   {
-        			   
-        				   global.Minibase.DiskManager.read_page(pageno, bufpool[pickVictimHead]);
-        				   bufpool[pickVictimHead].setPage(page);
-        				   
-        				   pagemap.remove(frametab[pickVictimHead].pageno.pid);
-                		   
-                		   frametab[pickVictimHead].pageno = pageno;
-                		   replacer.pinPage(frametab[pickVictimHead]);
-                		   frametab[pickVictimHead].dirty = UNPIN_CLEAN;
-                		   frametab[pickVictimHead].pincnt++;
-                		   
-                		   pagemap.put(pageno.pid, frametab[pickVictimHead]);
-        			   
-        		   }
-        		   else if(skipRead == PIN_MEMCPY)
-        		   {
-	        		   	        		  
-        		       bufpool[pickVictimHead].copyPage(page);
-        			   
-	        		   pagemap.remove(frametab[pickVictimHead].pageno.pid);
-	        		   
-	        		   frametab[pickVictimHead].pageno = pageno;
-	        		   replacer.pinPage(frametab[pickVictimHead]);
-	        		   frametab[pickVictimHead].dirty = UNPIN_CLEAN;
-	        		   frametab[pickVictimHead].pincnt++;
-	        		   
-	        		   pagemap.put(pageno.pid, frametab[pickVictimHead]);
-	        		   
-        		   }   
-        		   
-	        		   
-	        	   
-	         }
-		 }
-		
 
+	 
+	 System.out.println(" In pin page method.. ");
+	 int pickVictimHead;
+	 
+	 
+	 // Following lines are getting us the frame from the frametab using the pagemap.. 
+	  FrameDesc fd = pagemap.get(pageno.pid);
+	
 	
 	  
-    
-  }
+	  if(fd != null)
+	  {
+		  if(skipRead == PIN_MEMCPY )
+		  {
+			  throw new IllegalArgumentException(" Some error.. ");
+		  }
+		  else
+		  {
+			  fd.pincnt++;
+			  // in this i am setting the buffer pool with that page. 
+			  page.setPage(bufpool[fd.index]);
+			  replacer.pinPage(fd);
+		  }
+	  }
+	  else 
+	  {
+		  
+		  // Now we will call for the pickvictim method..  
+	      pickVictimHead = replacer.pickVictim();
+	  	  if(pickVictimHead == -1)
+	      {
+		       throw new IllegalStateException(" The buffer pool is full.. No replacement possible.  ");
+		  }
+	      else
+	      {
+		  
+		      if(skipRead == PIN_DISKIO)
+		      {
+			      if(frametab[pickVictimHead].dirty == true)
+			      {
+				      flushPage(frametab[pickVictimHead].pageno);
+				  }
+			     			     
+				      global.Minibase.DiskManager.read_page(pageno, bufpool[pickVictimHead]);  
+				      pagemap.remove(frametab[pickVictimHead].pageno.pid);
+				      frametab[pickVictimHead].pincnt++;
+				      page.setPage(bufpool[pickVictimHead]);
+				      
+       		          frametab[pickVictimHead].pageno = pageno;
+       		          frametab[pickVictimHead].dirty = false;
+       		          
+       		          pagemap.put(pageno.pid, frametab[pickVictimHead]);
+       		   	      replacer.pinPage(frametab[pickVictimHead]);
+				  
+			       
+		      }
+			      else if(skipRead == PIN_MEMCPY)
+				  {
+					  if(frametab[pickVictimHead].dirty == true)
+					  {
+						  flushPage(frametab[pickVictimHead].pageno);
+					  }
+					 
+					       bufpool[pickVictimHead].copyPage(page);
+					       // We need the page to point to the bufpool. 
+					       page.setPage(bufpool[pickVictimHead]);
+					       pagemap.remove(frametab[pickVictimHead].pageno.pid);
+					       frametab[pickVictimHead].pincnt++;
+					       
+		        		   
+		        		   frametab[pickVictimHead].pageno = pageno;
+		        		   frametab[pickVictimHead].dirty = false;
+		        		   
+		        		   pagemap.put(pageno.pid, frametab[pickVictimHead]);
+		        		   
+		        		   replacer.pinPage(frametab[pickVictimHead]);
+					  
+				  }
+		  }
+		  
+	      }
+	  }
+	  
+ 
 
   /**
    * Unpins a disk page from the buffer pool, decreasing its pin count.
@@ -251,80 +273,83 @@ public class BufMgr implements GlobalConst {
    * @throws IllegalArgumentException if the page is not present or not pinned
    */
   public void unpinPage(PageId pageno, boolean dirty) {
-    if(pageno == null)
-    {
-    	throw new IllegalArgumentException(" Page no is not correct.. ");
-    }
 	  
 	  
-    
-	  if(pagemap.get(pageno.pid) == null)
-	  {
-		  throw new IllegalArgumentException(" The page is not pinned.. and it is not in the buffer.. ");
-	  }
-	  else if(pagemap.get(pageno.pid).pincnt == 0)
-	  {
-		  throw new IllegalArgumentException(" The page is not in the buffer.. ");
-	  }
-	  else if(pagemap.get(pageno.pid).pincnt >= 1)
-	  {
-          //Means the page is pinned and is being used 
-		    pagemap.get(pageno.pid).dirty = dirty;
-		    pagemap.get(pageno.pid).pincnt--;
-		    if(pagemap.get(pageno.pid).pincnt == 0)
-		    {
-		        replacer.unpinPage(pagemap.get(pageno.pid));
-		    }
-	  }
-	  
-	  
-	  
-   
+	  System.out.println(" In unpin page method.. ");
+	    FrameDesc fd = pagemap.get(pageno.pid);
+	    
+	    if(fd == null)
+	    {
+	    	throw new IllegalArgumentException("  Page is no there.. . ");
+	    }
+	    else if(fd.pincnt == 0)
+	    {
+	    	throw new IllegalArgumentException("  page is not pinned. . ");	
+	    }
+	    else if(fd.pincnt == 1)
+	    {
+	    	fd.pincnt--;
+	    	fd.dirty = dirty;
+	    	frametab[fd.index] = fd;
+	    	pagemap.put(pageno.pid, frametab[fd.index]);
+	    	replacer.unpinPage(fd);
+	    }
+	    else
+	    {
+	    	fd.pincnt--;
+	    	fd.dirty = dirty;
+	    	frametab[fd.index] = fd;
+	    	
+	    }
+	    
   }
 
   /**
    * Immediately writes a page in the buffer pool to disk, if dirty.
 */
   public void flushPage(PageId pageno) {
-    
+
+	  System.out.println(" In flush page method.. ");
+      FrameDesc fd = pagemap.get(pageno.pid);
+  	  
 	  
-	if(frametab[pageno.pid].dirty == UNPIN_DIRTY)
-	{
-    Page writing_page = new Page();
-    writing_page = bufpool[pageno.pid];
-    
-    global.Minibase.DiskManager.write_page(pageno, writing_page);
-	}
-	else
-	{
-		throw new IllegalStateException(" THe page is not dirty.. So no need to flush it.. ");
-	}
-    
+          Page writing_page = new Page();
+          writing_page = bufpool[pageno.pid];
+         if(fd.dirty == true)
+         { 
+        	global.Minibase.DiskManager.write_page(pageno, writing_page);
+            fd.dirty = false;
+         }
   }
 
   /**
    * Immediately writes all dirty pages in the buffer pool to disk.
 */
   public void flushAllPages() {
+
      
 	  for(int i : pagemap.keySet() )
 	  {
 		 flushPage(pagemap.get(i).pageno);
 	  }
+
   }
 
   /**
    * Gets the total number of buffer frames.
    */
   public int getNumBuffers() {
+
       
 	  return numberOfBuffers;
+
   }
 
   /**
    * Gets the total number of unpinned buffer frames.
 */
   public int getNumUnpinned() {
+
     
 	  int numberOfUnpinnedPages = 0;
 	  
@@ -336,6 +361,7 @@ public class BufMgr implements GlobalConst {
 		  }
 	  }
 	  return numberOfUnpinnedPages;
+
   }
 
 } // public class BufMgr implements GlobalConst

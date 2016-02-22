@@ -14,7 +14,7 @@ class Clock extends Replacer {
 
   /** Clock head; required for the default clock algorithm. */
   protected int head;
-  
+
   // --------------------------------------------------------------------------
 
   /**
@@ -22,6 +22,7 @@ class Clock extends Replacer {
    */
   public Clock(BufMgr bufmgr) {
     super(bufmgr);
+
     
     // initialize the frame states
     for (int i = 0; i < frametab.length; i++) {
@@ -30,6 +31,16 @@ class Clock extends Replacer {
 
     // initialize the clock head
     head = 0;
+
+
+    // initialize the frame states
+    for (int i = 0; i < frametab.length; i++) {
+      frametab[i].state = AVAILABLE;
+    }
+
+    // initialize the clock head
+    head = 0;
+
 
   } // public Clock(BufMgr bufmgr)
 
@@ -44,23 +55,29 @@ class Clock extends Replacer {
    * Notifies the replacer of a free page.
    */
   public void freePage(FrameDesc fdesc) {
+
     fdesc.state = AVAILABLE;    
     
     
+
   }
 
   /**
    * Notifies the replacer of a pined page.
    */
   public void pinPage(FrameDesc fdesc) {
+
     fdesc.state = PINNED;
+
   }
 
   /**
    * Notifies the replacer of an unpinned page.
    */
   public void unpinPage(FrameDesc fdesc) {
+
      fdesc.state = REFERENCED;
+
   }
 
   /**
@@ -69,6 +86,7 @@ class Clock extends Replacer {
    * @return victim frame number, or -1 if none available
    */
   public int pickVictim() {
+
     
       
 	 while(head != (frametab.length)-1)

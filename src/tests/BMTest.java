@@ -4,7 +4,9 @@ import global.Convert;
 import global.Minibase;
 import global.Page;
 import global.PageId;
+
 import tests.TestDriver;
+
 
 /**
  * Test suite for the bufmgr layer.
@@ -18,13 +20,15 @@ class BMTest extends TestDriver {
    * Test application entry point; runs all tests.
    */
   public static void main(String argv[]) {
+
 	  
-	  System.out.println("Hello i have reached up til this point... ");
+	  
     // create a clean Minibase instance
     BMTest bmt = new BMTest();
     bmt.create_minibase();
     
-    
+
+
 
     // run all the test cases
     System.out.println("\n" + "Running " + TEST_NAME + "...");
